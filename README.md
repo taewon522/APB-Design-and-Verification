@@ -23,7 +23,7 @@
   - [6.3 Functional Coverage](#63-functional-coverage)
   - [6.4 Test Plan](#64-test-plan)
 - [7. RTL](https://github.com/taewon522/APB-Design-and-Verification/tree/main/rtl)
-- [8. DOC](https://github.com/taewon522/APB-Design-and-Verification/tree/main/doc)
+- [8. DOC](#8-참고문서)
 
 ---
 
@@ -188,3 +188,7 @@ Suggested tests:
 - **T7**: Illegal address behavior (policy-based: assertion fail / no select)
 
 ---
+### 8 참고문서
+
+- [ABP SPEC PDF 열기](https://raw.githubusercontent.com/taewon522/APB-Design-and-Verification/main/doc/IHI0024E_amba_apb_architecture_spec.pdf)
+- [ABP SPEC PDF 다운로드](https://raw.githubusercontent.com/taewon522/APB-Design-and-Verification/main/doc/IHI0024E_amba_apb_architecture_spec.pdf)
