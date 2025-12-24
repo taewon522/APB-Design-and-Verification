@@ -23,7 +23,7 @@
   - [6.3 Functional Coverage](#63-functional-coverage)
   - [6.4 Test Plan](#64-test-plan)
 - [7. RTL](#7-rtl-code)
-- [8. DOC](#8-doc(참고문서))
+- [8. DOC](#8-doc)
 
 ---
 
@@ -411,7 +411,7 @@ module APB_Mux (
 endmodule
 
 ---
-### 8 doc(참고문서)
+### 8 doc
 
 - [ABP SPEC PDF 열기](https://raw.githubusercontent.com/taewon522/APB-Design-and-Verification/main/doc/IHI0024E_amba_apb_architecture_spec.pdf)
 - [ABP SPEC PDF 다운로드](https://raw.githubusercontent.com/taewon522/APB-Design-and-Verification/main/doc/IHI0024E_amba_apb_architecture_spec.pdf)
