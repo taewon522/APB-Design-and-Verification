@@ -7,7 +7,7 @@
 </p>
 
 > **What this is**  
-> 내부 request interface(`transfer/write/addr/wdata`)를 APB bus signal로 변환하고, address decoding을 통해 **5개 slave 중 1개를 선택**하는 간단한 APB-like master RTL입니다.
+> 내부 request interface(transfer/write/addr/wdata)를 입력으로 받아 APB SETUP/ACCESS 트랜잭션을 생성하고, address decoding을 통해 5개 slave 중 1개를 선택하는 APB Master + Decoder/Mux 구조입니다.
 
 ---
 
