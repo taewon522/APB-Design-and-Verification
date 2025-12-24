@@ -7,7 +7,7 @@
 </p>
 
 > **What this is**  
-> A simple APB-like master that converts an internal request interface (`transfer/write/addr/wdata`) into APB bus signals and selects **one of 5 slaves** via address decoding.
+> 내부 request interface(`transfer/write/addr/wdata`)를 APB bus signal로 변환하고, address decoding을 통해 **5개 slave 중 1개를 선택**하는 간단한 APB-like master RTL입니다.
 
 ---
 
@@ -30,16 +30,16 @@
 ## 1. Overview
 
 **Module name:** `APB_Master`  
-**Purpose:**  
-- Accept a request on the internal interface
-- Latch request fields (`addr/write/wdata`)
-- Perform an APB-style **SETUP → ACCESS** transaction
-- Select one of **5 slaves** using address decoding
-- Return `ready` and (for reads) `rdata` through a mux
+**목적(Purpose):**
+- internal request를 입력으로 받아 transaction 시작
+- `addr/write/wdata`를 내부 register에 **latch**
+- APB style **SETUP → ACCESS** 프로토콜로 변환
+- address decoding으로 **5개 slave 중 1개 선택**
+- `ready`와 (read인 경우) `rdata`를 mux를 통해 반환
 
 **Slaves supported:** `SEL0 .. SEL4`  
-**States:** `IDLE`, `SETUP`, `ACCESS`  
-**Completion condition:** `ready == 1` (muxed from selected slave `pReadyX`)
+**FSM states:** `IDLE`, `SETUP`, `ACCESS`  
+**Transaction 완료 조건:** `ready == 1` (선택된 slave의 `pReadyX`가 mux되어 들어옴)
 
 ---
 
@@ -47,38 +47,38 @@
 
 ### 2.1 Global
 - `pclk` : clock
-- `pReset` : synchronous active-high reset (sampled on `posedge pclk`)
+- `pReset` : synchronous active-high reset (`posedge pclk`에서 샘플링)
 
 ### 2.2 Internal Request Interface
 | Signal | Dir | Width | Description |
 |---|---:|---:|---|
-| `transfer` | in | 1 | Request valid (sampled in IDLE only) |
+| `transfer` | in | 1 | Request valid (IDLE에서만 샘플링) |
 | `write` | in | 1 | 1=write, 0=read |
 | `addr` | in | 32 | Address |
 | `wdata` | in | 32 | Write data |
-| `ready` | out | 1 | Transaction completion (muxed from slave ready) |
-| `rdata` | out | 32 | Read data (muxed from slave rdata) |
+| `ready` | out | 1 | Transaction 완료 신호(선택된 slave ready를 mux) |
+| `rdata` | out | 32 | Read data(선택된 slave rdata를 mux) |
 
-**Request acceptance rule:**  
-- The request is accepted **only in `IDLE`** when `transfer==1`.  
-- On acceptance, `addr/write/wdata` are **latched** into internal registers.
+**Request acceptance rule:**
+- request는 **IDLE 상태에서만** `transfer==1`일 때 accept 됨
+- accept 시점에 `addr/write/wdata`를 내부 register에 **latch**
 
 ### 2.3 APB-side Interface
 | Signal | Dir | Width | Description |
 |---|---:|---:|---|
-| `pSel0..pSel4` | out | 1 each | One-hot slave select (from decoder) |
+| `pSel0..pSel4` | out | 1 each | one-hot slave select (decoder output) |
 | `pEnable` | out | 1 | APB enable phase |
 | `pWrite` | out | 1 | 1=write, 0=read |
 | `pAddr` | out | 32 | Address (latched) |
 | `pWdata` | out | 32 | Write data (latched) |
-| `pRdata0..4` | in | 32 | Slave read data inputs |
-| `pReady0..4` | in | 1 | Slave ready inputs |
+| `pRdata0..4` | in | 32 | Slave read data |
+| `pReady0..4` | in | 1 | Slave ready |
 
 ---
 
 ## 3. Address Map & Decode Rules
 
-Address decode uses `temp_addr_reg` (latched `addr`) while `decoder_en==1`.
+Address decode는 `decoder_en==1`일 때, latched된 `temp_addr_reg` 기준으로 동작합니다.
 
 ### 3.1 Slave selection
 | Address Pattern | Selected Slave | `pselx` | `mux_sel` |
@@ -90,45 +90,45 @@ Address decode uses `temp_addr_reg` (latched `addr`) while `decoder_en==1`.
 | `32'h1000_4xxx` | 4 | `5'b10000` | `3'd4` |
 
 ### 3.2 Decode enable
-- `decoder_en=1` in **SETUP** and **ACCESS**
-- `decoder_en=0` in **IDLE**
+- `decoder_en=1` : `SETUP`, `ACCESS`
+- `decoder_en=0` : `IDLE`
 
 ### 3.3 Mux behavior
-- `ready` is selected from `pReady[mux_sel]`
-- `rdata` is selected from `pRdata[mux_sel]`
+- `ready` = `pReady[mux_sel]`
+- `rdata` = `pRdata[mux_sel]`
 
 ---
 
 ## 4. FSM & Protocol Behavior
 
 ### 4.1 States
-- **IDLE**: waiting for `transfer`
-- **SETUP**: select slave (`pSelX=1`) and hold `pEnable=0`
-- **ACCESS**: assert `pEnable=1` and wait for `ready==1`
+- **IDLE**: `transfer` 대기
+- **SETUP**: `pSelX=1`, `pEnable=0` (setup phase)
+- **ACCESS**: `pEnable=1` 후 `ready`를 기다림 (wait-state 지원)
 
 ### 4.2 Reset behavior
-On `pReset==1` (posedge):
+`pReset==1`이면(posedge):
 - `state <= IDLE`
-- latched request regs cleared to 0
+- latched request register들 0으로 초기화
 
 ### 4.3 State transitions
-- `IDLE → SETUP` : if `transfer==1` (request accepted & latched)
-- `SETUP → ACCESS` : always next cycle (single-cycle setup)
-- `ACCESS → IDLE` : if `ready==1`
+- `IDLE → SETUP` : `transfer==1` (request latch)
+- `SETUP → ACCESS` : 다음 cycle에 항상 진입 (setup은 1-cycle)
+- `ACCESS → IDLE` : `ready==1`이면 종료
 
 ### 4.4 Output behavior per state (high level)
 | State | `decoder_en` | `pEnable` | `pSelX` | Notes |
 |---|---:|---:|---:|---|
-| IDLE | 0 | 0 | 0 | Request accepted only here |
-| SETUP | 1 | 0 | one-hot | Address/write/data already latched |
-| ACCESS | 1 | 1 | one-hot | Wait-state supported via `ready` |
+| IDLE | 0 | 0 | 0 | request는 여기서만 accept |
+| SETUP | 1 | 0 | one-hot | addr/write/wdata는 이미 latch |
+| ACCESS | 1 | 1 | one-hot | `ready`가 1 될 때까지 유지 |
 
 ---
 
 ## 5. Key Assumptions / Limitations
-- `transfer` is meaningful **only in IDLE**; changes in SETUP/ACCESS are ignored.
-- Address is expected to be within the defined decode ranges (`1000_0xxx` ~ `1000_4xxx`) for a valid slave select.
-- Slave is responsible for asserting its `pReadyX` and providing `pRdataX` when selected.
+- `transfer`는 **IDLE에서만 의미 있음** (SETUP/ACCESS에서 변화해도 무시)
+- address는 decode 범위(`1000_0xxx` ~ `1000_4xxx`) 안에 있다고 가정
+- slave는 선택되었을 때 `pReadyX`와 `pRdataX`를 적절히 제공해야 함
 
 ---
 
@@ -138,54 +138,54 @@ On `pReset==1` (posedge):
 
 | Req ID | Requirement (Shall) | Suggested Check Method |
 |---|---|---|
-| FR-001 | On `pReset`, DUT shall enter `IDLE` and clear latched fields. | Directed test + SVA |
-| FR-010 | In `IDLE`, if `transfer==1`, DUT shall latch `addr/write/wdata` and transition to `SETUP`. | Scoreboard + SVA |
-| FR-020 | In `SETUP`, DUT shall keep `pEnable==0`. | SVA |
-| FR-021 | In `ACCESS`, DUT shall assert `pEnable==1`. | SVA |
-| FR-022 | `SETUP` shall be exactly 1 cycle and transition to `ACCESS` next cycle. | SVA |
-| FR-030 | For each address region, DUT shall assert exactly one `pSelX` (one-hot) when `decoder_en==1`. | SVA + Coverage |
-| FR-040 | In `ACCESS`, if `ready==0`, DUT shall remain in `ACCESS` (wait-state handling). | Random ready delay + SVA |
-| FR-041 | In `ACCESS`, when `ready==1`, DUT shall transition to `IDLE`. | SVA |
-| FR-050 | For reads, on completion (`ready==1`), `rdata` shall match selected slave `pRdataX`. | Scoreboard |
-| FR-060 | For writes, DUT shall drive `pWrite==1` and `pWdata==latched wdata` during SETUP/ACCESS. | SVA + Scoreboard |
-| FR-070 | DUT shall support back-to-back requests (multiple transfers), completing each independently. | Random sequence + Coverage |
-| FR-080 | `transfer` changes during SETUP/ACCESS shall not affect the current transaction. | Directed glitch test + SVA |
+| FR-001 | `pReset` 시 DUT는 `IDLE`로 진입하고 latch 값들을 초기화해야 함. | Directed test + SVA |
+| FR-010 | `IDLE`에서 `transfer==1`이면 `addr/write/wdata`를 latch하고 `SETUP`으로 전이해야 함. | Scoreboard + SVA |
+| FR-020 | `SETUP`에서 `pEnable==0`을 유지해야 함. | SVA |
+| FR-021 | `ACCESS`에서 `pEnable==1`을 assert 해야 함. | SVA |
+| FR-022 | `SETUP`은 정확히 1 cycle 이어야 하며 다음 cycle에 `ACCESS`로 전이해야 함. | SVA |
+| FR-030 | decode 영역 별로 `decoder_en==1`일 때 `pSelX`는 one-hot이어야 함. | SVA + Coverage |
+| FR-040 | `ACCESS && !ready`이면 `ACCESS`에 머물러 wait-state를 처리해야 함. | Random ready delay + SVA |
+| FR-041 | `ACCESS && ready`이면 다음 상태는 `IDLE`이어야 함. | SVA |
+| FR-050 | read 완료 시점(`ready==1`)에 `rdata`는 선택된 slave의 `pRdataX`와 같아야 함. | Scoreboard |
+| FR-060 | write인 경우 `pWrite==1` 및 `pWdata==latched wdata`를 SETUP/ACCESS 동안 유지해야 함. | SVA + Scoreboard |
+| FR-070 | back-to-back request를 지원해야 함. | Random sequence + Coverage |
+| FR-080 | SETUP/ACCESS 중 `transfer` 변화는 현재 transaction에 영향을 주면 안 됨. | Directed glitch test + SVA |
 
 ---
 
 ### 6.2 Assertions (SVA) Checklist
-Recommended assertions to implement in the verification environment:
+추천 assertion 목록:
 
-- **A1**: `SETUP` lasts 1 cycle then goes to `ACCESS`
+- **A1**: `SETUP`은 1 cycle 후 `ACCESS`로 전이
 - **A2**: `pEnable==0` in `SETUP`, `pEnable==1` in `ACCESS`
-- **A3**: When `decoder_en==1`, `pSel` is `onehot0` (`0 or exactly 1 bit set`)
-- **A4**: During wait-states (`ACCESS && !ready`), `pAddr/pWrite/pWdata/pSel` remain stable
-- **A5**: `ready==1` in `ACCESS` causes next state to be `IDLE`
+- **A3**: `decoder_en==1`이면 `pSel`은 `$onehot0` 만족
+- **A4**: wait-state(`ACCESS && !ready`) 동안 `pAddr/pWrite/pWdata/pSel` 안정(stable)
+- **A5**: `ACCESS && ready`이면 next state는 `IDLE`
 
-> Tip: `onehot0` can be checked using `$onehot0({pSel4,pSel3,pSel2,pSel1,pSel0})`.
+> Tip: `$onehot0({pSel4,pSel3,pSel2,pSel1,pSel0})`
 
 ---
 
 ### 6.3 Functional Coverage
-Minimum coverage points:
+최소 coverage 포인트:
 
-- **C1**: Slave select hit: SEL0~SEL4
-- **C2**: Read/Write cross coverage per slave
-- **C3**: Wait-state length bins: 0-cycle, 1~N cycles
-- **C4**: Back-to-back length bins: 1,2,3,4+ consecutive transfers
+- **C1**: slave select hit: SEL0~SEL4
+- **C2**: Read/Write × slave cross coverage
+- **C3**: wait-state 길이 binning: 0-cycle, 1~N cycles
+- **C4**: back-to-back 길이 binning: 1,2,3,4+ consecutive transfers
 
 ---
 
 ### 6.4 Test Plan
-Suggested tests:
+추천 test 항목:
 
-- **T1**: Reset sanity
-- **T2**: Basic read/write per slave (no wait-state)
-- **T3**: Random wait-state read/write per slave
-- **T4**: Address sweep over all regions
-- **T5**: Random back-to-back transfers (stress)
-- **T6**: `transfer` asserted during SETUP/ACCESS (must be ignored)
-- **T7**: Illegal address behavior (policy-based: assertion fail / no select)
+- **T1**: reset sanity
+- **T2**: slave 별 기본 read/write (no wait-state)
+- **T3**: random wait-state read/write
+- **T4**: address sweep (모든 decode 영역)
+- **T5**: random back-to-back transfers (stress)
+- **T6**: SETUP/ACCESS 중 `transfer` assert (무시되어야 함)
+- **T7**: illegal address behavior (정책에 따라: assert fail / no select)
 
 ---
 ## 7 RTL CODE
