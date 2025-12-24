@@ -188,7 +188,7 @@ Suggested tests:
 - **T7**: Illegal address behavior (policy-based: assertion fail / no select)
 
 ---
-### 7 RTL CODE
+## 7 RTL CODE
 
 <details>
   <summary><b>Click to expand RTL (APB_Master / APB_Decoder / APB_Mux)</b></summary>
@@ -409,9 +409,12 @@ module APB_Mux (
         endcase
     end
 endmodule
+```
+</details>
 
 ---
-### 8 doc
+
+## 8 doc
 
 - [ABP SPEC PDF 열기](https://raw.githubusercontent.com/taewon522/APB-Design-and-Verification/main/doc/IHI0024E_amba_apb_architecture_spec.pdf)
 - [ABP SPEC PDF 다운로드](https://raw.githubusercontent.com/taewon522/APB-Design-and-Verification/main/doc/IHI0024E_amba_apb_architecture_spec.pdf)
