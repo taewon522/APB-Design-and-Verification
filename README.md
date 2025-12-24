@@ -23,6 +23,7 @@
   - [6.3 Functional Coverage](#63-functional-coverage)
   - [6.4 Test Plan](#64-test-plan)
 - [7. RTL](https://github.com/taewon522/APB-Design-and-Verification/tree/main/rtl)
+- [8. DOC](https://github.com/taewon522/APB-Design-and-Verification/tree/main/doc)
 
 ---
 
